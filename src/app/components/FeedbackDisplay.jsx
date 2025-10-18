@@ -46,7 +46,7 @@ export default function FeedbackDisplay({ feedback }) {
                     원문 #{index + 1}
                   </span>
                   <p className="text-gray-700 italic">
-                    "{item.original_sentence}"
+                    &ldquo;{item.original_sentence}&rdquo;
                   </p>
                 </div>
                 

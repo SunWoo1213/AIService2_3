@@ -50,6 +50,7 @@ export default function InterviewUI({ questions, onComplete }) {
         clearInterval(timerRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording, timeLeft]);
 
   const startRecording = () => {
