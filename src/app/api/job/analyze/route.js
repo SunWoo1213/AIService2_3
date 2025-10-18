@@ -42,7 +42,7 @@ Provide ONLY the JSON object, no additional text.`;
         'Authorization': `Bearer ${llmApiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4-preview',
         messages: [
           {
             role: 'system',

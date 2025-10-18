@@ -64,7 +64,7 @@ Provide ONLY the JSON array, no additional text. Questions should be in Korean.`
           'Authorization': `Bearer ${llmApiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-4-preview',
           messages: [
             {
               role: 'system',

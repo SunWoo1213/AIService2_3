@@ -66,9 +66,9 @@ Provide ONLY the JSON object, no additional text.`;
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${llmApiKey}`
         },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
+      body: JSON.stringify({
+        model: 'gpt-4-preview',
+        messages: [
             {
               role: 'system',
               content: 'You are a professional career coach. Always respond with valid JSON only in Korean.'
