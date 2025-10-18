@@ -54,7 +54,7 @@ Provide ONLY the JSON object, no additional text.`;
           'Authorization': `Bearer ${llmApiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4-preview',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'system',

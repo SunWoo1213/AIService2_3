@@ -63,9 +63,9 @@ Provide ONLY the JSON array, no additional text. Questions should be in Korean.`
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${llmApiKey}`
         },
-        body: JSON.stringify({
-          model: 'gpt-4-preview',
-          messages: [
+         body: JSON.stringify({
+           model: 'gpt-4o',
+           messages: [
             {
               role: 'system',
               content: 'You are a professional interviewer. Always respond with valid JSON only.'
