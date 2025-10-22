@@ -11,15 +11,32 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+// Initialize Firebase only if config is valid
+let app = null;
+let auth = null;
+let db = null;
+
+// Firebase 환경 변수가 모두 설정되어 있는지 확인
+const isFirebaseConfigured = firebaseConfig.apiKey && 
+                              firebaseConfig.authDomain && 
+                              firebaseConfig.projectId;
+
+if (isFirebaseConfigured) {
+  try {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApps()[0];
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } catch (error) {
+    console.warn('Firebase initialization failed:', error.message);
+  }
 } else {
-  app = getApps()[0];
+  console.warn('Firebase config is not fully set. Running in development mode without Firebase.');
 }
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export { auth, db };
 export default app;
 

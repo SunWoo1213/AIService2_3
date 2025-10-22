@@ -95,15 +95,74 @@ export default function FeedbackDetailPage({ params }) {
                 </div>
                 <div className="mb-3">
                   <span className="text-sm font-medium text-gray-600">당신의 답변:</span>
-                  <p className="text-gray-700 mt-1">{result.userAnswer}</p>
+                  <p className="text-gray-700 mt-1 whitespace-pre-wrap">{result.userAnswer}</p>
                 </div>
-                <div className="border-t pt-3">
+
+                {/* 내용 평가 */}
+                <div className="border-t pt-3 mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">점수:</span>
-                    <span className="text-xl font-bold text-primary-600">{result.score}/10</span>
+                    <span className="text-sm font-medium text-gray-600">📝 내용 점수:</span>
+                    <span className="text-xl font-bold text-primary-600">
+                      {result.contentScore || result.score || 0}/10
+                    </span>
                   </div>
-                  <p className="text-gray-700">{result.feedback}</p>
+                  <p className="text-gray-700 text-sm">
+                    {result.contentAdvice || result.feedback || '평가 없음'}
+                  </p>
                 </div>
+
+                {/* 전달력 분석 (있는 경우만 표시) */}
+                {result.deliveryMetrics && (
+                  <div className="border-t pt-3 bg-blue-50 -mx-6 px-6 pb-3 rounded-b-xl">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                      <span className="mr-2">🎙️</span>
+                      전달력 분석
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                      {/* 말 속도 */}
+                      {result.deliveryMetrics.wpm && (
+                        <div className="bg-white p-3 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-gray-600">말 속도</span>
+                            <span className="text-lg font-bold text-primary-600">
+                              {result.deliveryMetrics.wpm} WPM
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {result.deliveryMetrics.wpmAdvice || '이상적 범위: 130-160 WPM'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 필러 단어 */}
+                      {result.deliveryMetrics.fillerCount !== undefined && (
+                        <div className="bg-white p-3 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-gray-600">필러 단어</span>
+                            <span className="text-lg font-bold text-orange-600">
+                              {result.deliveryMetrics.fillerCount}회
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {result.deliveryMetrics.fillerAdvice || "'어', '음' 등의 불필요한 단어"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-gray-500 italic">
+                      💡 전달력 분석은 음성 속도와 필러 단어를 기반으로 합니다.
+                    </div>
+                  </div>
+                )}
+
+                {/* 전달력 분석이 없는 경우 안내 */}
+                {!result.deliveryMetrics && (
+                  <div className="text-xs text-gray-400 italic mt-2">
+                    💡 이 답변은 기본 평가 모드로 분석되었습니다.
+                  </div>
+                )}
               </div>
             ))}
           </div>
