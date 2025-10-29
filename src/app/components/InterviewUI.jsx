@@ -22,6 +22,8 @@ export default function InterviewUI({ questions, onComplete }) {
   const audioStreamRef = useRef(null);
   // 누적된 최종 텍스트를 저장 (음성 인식이 중단되어도 유지)
   const finalTranscriptRef = useRef('');
+  // 현재 녹음 상태를 추적 (클로저 문제 방지)
+  const isRecordingRef = useRef(false);
 
   // TTS 기능: 질문을 음성으로 읽어주는 함수
   const speakQuestion = (text, autoStartTimer = false) => {
@@ -79,6 +81,7 @@ export default function InterviewUI({ questions, onComplete }) {
         setTimeLeft(currentQuestion.time_limit);
         setAnswer(''); // 답변 초기화
         finalTranscriptRef.current = ''; // 누적 텍스트 초기화
+        isRecordingRef.current = false; // 녹음 상태 초기화
         
         // 약간의 딜레이를 주어 자연스럽게 재생
         const timer = setTimeout(() => {
@@ -210,20 +213,35 @@ export default function InterviewUI({ questions, onComplete }) {
 
       // 음성 인식이 자동으로 종료되면 다시 시작 (녹음 중일 때만)
       recognitionRef.current.onend = () => {
-        console.log('음성 인식 종료 감지');
-        // 녹음 중이고 타이머가 남아있으면 자동으로 재시작
-        if (isRecording && timeLeft > 0) {
+        console.log('음성 인식 종료 감지 - 녹음 상태:', isRecordingRef.current);
+        
+        // isRecordingRef를 사용하여 최신 상태 확인
+        if (isRecordingRef.current) {
           console.log('음성 인식 자동 재시작...');
-          try {
-            recognitionRef.current?.start();
-          } catch (error) {
-            console.error('음성 인식 재시작 실패:', error);
-          }
+          
+          // 짧은 딜레이 후 재시작 (브라우저가 준비될 시간 제공)
+          setTimeout(() => {
+            if (isRecordingRef.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+                console.log('음성 인식 재시작 성공');
+              } catch (error) {
+                console.error('음성 인식 재시작 실패:', error);
+                // 이미 시작된 경우 에러를 무시
+                if (error.message && !error.message.includes('already started')) {
+                  console.error('재시작 중 예기치 않은 오류:', error);
+                }
+              }
+            }
+          }, 100);
+        } else {
+          console.log('녹음 중지됨 - 재시작하지 않음');
         }
       };
 
       recognitionRef.current.start();
       setIsRecording(true);
+      isRecordingRef.current = true; // ref 업데이트
       
       // 타이머가 아직 시작되지 않았다면 시작
       if (!isTimerRunning) {
@@ -237,6 +255,10 @@ export default function InterviewUI({ questions, onComplete }) {
 
   const handleStopRecording = async () => {
     console.log('=== 녹음 중지 ===');
+    
+    // 0. 녹음 상태를 먼저 false로 설정 (자동 재시작 방지)
+    isRecordingRef.current = false;
+    setIsRecording(false);
     
     // 1. SpeechRecognition 중지
     if (recognitionRef.current) {
@@ -269,8 +291,6 @@ export default function InterviewUI({ questions, onComplete }) {
       audioStreamRef.current.getTracks().forEach(track => track.stop());
       audioStreamRef.current = null;
     }
-
-    setIsRecording(false);
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -398,6 +418,10 @@ export default function InterviewUI({ questions, onComplete }) {
   };
 
   const handleSkip = () => {
+    // 녹음 상태 초기화 (자동 재시작 방지)
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    
     // TTS 중지
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
