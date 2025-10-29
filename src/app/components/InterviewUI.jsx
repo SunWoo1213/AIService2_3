@@ -519,28 +519,15 @@ export default function InterviewUI({ questions, onComplete }) {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {isRecording ? '🎤 녹음 중... (직접 수정 가능)' : '답변 (음성 인식)'}
+            {isRecording ? '🎤 녹음 중...' : '답변 (음성 인식)'}
           </label>
           <textarea
             value={answer}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setAnswer(newValue);
-              // 사용자가 직접 수정한 내용도 finalTranscriptRef에 반영
-              if (isRecording) {
-                finalTranscriptRef.current = newValue;
-                console.log('사용자 직접 수정:', newValue);
-              }
-            }}
-            className="input-field resize-none"
+            readOnly
+            className="input-field resize-none bg-gray-50 cursor-not-allowed"
             rows={6}
             placeholder="🎤 '답변 시작' 버튼을 눌러 음성으로 답변하세요..."
           />
-          {isRecording && (
-            <p className="text-xs text-gray-500 mt-1">
-              💡 음성 인식 중에도 텍스트를 직접 수정할 수 있습니다.
-            </p>
-          )}
         </div>
 
         {/* Controls */}
