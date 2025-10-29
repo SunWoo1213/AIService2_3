@@ -5,18 +5,6 @@ import Card from './ui/Card';
 export default function FeedbackDisplay({ feedback }) {
   if (!feedback) return null;
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getScoreBgColor = (score) => {
-    if (score >= 80) return 'bg-green-50 border-green-200';
-    if (score >= 60) return 'bg-yellow-50 border-yellow-200';
-    return 'bg-red-50 border-red-200';
-  };
-
   const getCategoryColor = (category) => {
     const colors = {
       '직무적합성': 'bg-blue-100 text-blue-800',
@@ -39,57 +27,19 @@ export default function FeedbackDisplay({ feedback }) {
 
   return (
     <div className="space-y-6">
-      {/* 전체 점수 카드 */}
-      <Card className={`${getScoreBgColor(feedback.score)} border-2`}>
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">전체 점수</h3>
-          <div className={`text-6xl font-bold ${getScoreColor(feedback.score)}`}>
-            {feedback.score}
-            <span className="text-3xl">/100</span>
-          </div>
-          
-          {/* 요약 */}
-          {feedback.summary && (
-            <p className="mt-4 text-gray-700 text-lg font-medium px-4">
+      {/* 전체 요약 카드 */}
+      {feedback.summary && (
+        <Card className="bg-blue-50 border-2 border-blue-200">
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center justify-center">
+              <span className="text-3xl mr-2">📊</span> 전체 평가
+            </h3>
+            <p className="text-gray-700 text-lg font-medium px-4">
               {feedback.summary}
             </p>
-          )}
-        </div>
-
-        {/* 세부 점수 분석 */}
-        {feedback.score_breakdown && (
-          <div className="mt-6 pt-6 border-t border-gray-300">
-            <h4 className="text-lg font-bold text-gray-800 mb-4 text-center">세부 평가 항목</h4>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{feedback.score_breakdown.job_fit}</div>
-                <div className="text-xs text-gray-600 mt-1">직무 적합성</div>
-                <div className="text-xs text-gray-500">(30점)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{feedback.score_breakdown.specificity}</div>
-                <div className="text-xs text-gray-600 mt-1">구체성</div>
-                <div className="text-xs text-gray-500">(25점)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{feedback.score_breakdown.grammar}</div>
-                <div className="text-xs text-gray-600 mt-1">문법/표현</div>
-                <div className="text-xs text-gray-500">(20점)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{feedback.score_breakdown.logic}</div>
-                <div className="text-xs text-gray-600 mt-1">논리성</div>
-                <div className="text-xs text-gray-500">(15점)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-pink-600">{feedback.score_breakdown.differentiation}</div>
-                <div className="text-xs text-gray-600 mt-1">차별화</div>
-                <div className="text-xs text-gray-500">(10점)</div>
-              </div>
-            </div>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* 강점과 약점 */}
       {(feedback.strengths || feedback.weaknesses) && (

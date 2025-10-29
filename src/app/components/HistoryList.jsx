@@ -54,14 +54,9 @@ export default function HistoryList({ feedbacks, type }) {
 
               {type === 'resume' && (
                 <div>
-                  <div className="mb-2">
-                    <span className="inline-block px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
-                      점수: {feedback.feedback?.score || 'N/A'}/100
-                    </span>
-                  </div>
                   {feedback.resumeText && (
-                    <p className="text-gray-700 text-sm line-clamp-2">
-                      {feedback.resumeText.substring(0, 150)}...
+                    <p className="text-gray-700 text-sm line-clamp-3">
+                      {feedback.resumeText.substring(0, 200)}...
                     </p>
                   )}
                 </div>
