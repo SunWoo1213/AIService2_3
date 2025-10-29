@@ -140,6 +140,7 @@ export default function InterviewUI({ questions, onComplete }) {
         setAnswer(''); // 답변 초기화
         finalTranscriptRef.current = ''; // 누적 텍스트 초기화
         isRecordingRef.current = false; // 녹음 상태 초기화
+        recordingStartTimeRef.current = null; // 녹음 시작 시간 초기화
         
         // 약간의 딜레이를 주어 자연스럽게 재생
         const timer = setTimeout(() => {
@@ -495,6 +496,7 @@ export default function InterviewUI({ questions, onComplete }) {
     // 녹음 상태 초기화 (자동 재시작 방지)
     isRecordingRef.current = false;
     setIsRecording(false);
+    recordingStartTimeRef.current = null; // 녹음 시작 시간 초기화
     
     // TTS 중지
     if (window.speechSynthesis.speaking) {
