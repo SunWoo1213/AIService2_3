@@ -432,23 +432,22 @@ export default function InterviewUI({ questions, onComplete }) {
 
         {/* Answer display */}
         {!browserSupported && (
-          <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
-            <p className="font-medium">음성 인식이 지원되지 않습니다.</p>
-            <p className="text-sm mt-1">Chrome 브라우저를 사용하거나 아래에 직접 답변을 입력하세요.</p>
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg">
+            <p className="font-medium">⚠️ 음성 인식이 지원되지 않습니다.</p>
+            <p className="text-sm mt-1">Chrome 브라우저를 사용해주세요. 이 브라우저에서는 모의 면접을 진행할 수 없습니다.</p>
           </div>
         )}
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {isRecording ? '🎤 녹음 중...' : '답변'}
+            {isRecording ? '🎤 녹음 중...' : '답변 (음성 인식)'}
           </label>
           <textarea
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={isRecording}
-            className="input-field resize-none"
+            readOnly
+            className="input-field resize-none bg-gray-50 cursor-not-allowed"
             rows={6}
-            placeholder="음성 인식을 시작하거나 직접 입력하세요..."
+            placeholder="🎤 '답변 시작' 버튼을 눌러 음성으로 답변하세요..."
           />
         </div>
 
