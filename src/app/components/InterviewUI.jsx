@@ -20,6 +20,8 @@ export default function InterviewUI({ questions, onComplete }) {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
+  // 누적된 최종 텍스트를 저장 (음성 인식이 중단되어도 유지)
+  const finalTranscriptRef = useRef('');
 
   // TTS 기능: 질문을 음성으로 읽어주는 함수
   const speakQuestion = (text, autoStartTimer = false) => {
@@ -76,6 +78,7 @@ export default function InterviewUI({ questions, onComplete }) {
         setIsTimerRunning(false);
         setTimeLeft(currentQuestion.time_limit);
         setAnswer(''); // 답변 초기화
+        finalTranscriptRef.current = ''; // 누적 텍스트 초기화
         
         // 약간의 딜레이를 주어 자연스럽게 재생
         const timer = setTimeout(() => {
@@ -126,6 +129,10 @@ export default function InterviewUI({ questions, onComplete }) {
     }
 
     try {
+      // 누적 텍스트 초기화 (새로운 녹음 시작)
+      finalTranscriptRef.current = '';
+      setAnswer('');
+
       // 1. 오디오 스트림 가져오기 (MediaRecorder용)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
@@ -162,18 +169,59 @@ export default function InterviewUI({ questions, onComplete }) {
       recognitionRef.current.interimResults = true;
 
       recognitionRef.current.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let interimTranscript = ''; // 임시 중간 결과
+        let finalTranscript = ''; // 확정된 결과
+
+        // 모든 결과를 순회하며 final과 interim 구분
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
         }
-        setAnswer(transcript);
+
+        // 최종 확정된 텍스트가 있으면 누적
+        if (finalTranscript) {
+          finalTranscriptRef.current += finalTranscript;
+          console.log('음성 인식 (최종):', finalTranscript);
+          console.log('누적 텍스트:', finalTranscriptRef.current);
+        }
+
+        // 화면에 표시: 누적된 최종 텍스트 + 현재 중간 결과
+        const displayText = finalTranscriptRef.current + interimTranscript;
+        setAnswer(displayText);
+        
+        if (interimTranscript) {
+          console.log('음성 인식 (중간):', interimTranscript);
+        }
       };
 
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        if (event.error === 'no-speech') {
-          // 음성이 감지되지 않아도 계속 진행
+        // no-speech, audio-capture, aborted 등의 에러는 무시하고 계속 진행
+        if (['no-speech', 'audio-capture', 'aborted'].includes(event.error)) {
+          console.log('무시 가능한 에러:', event.error);
           return;
+        }
+        // 치명적인 에러만 사용자에게 알림
+        if (event.error === 'not-allowed') {
+          alert('마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+        }
+      };
+
+      // 음성 인식이 자동으로 종료되면 다시 시작 (녹음 중일 때만)
+      recognitionRef.current.onend = () => {
+        console.log('음성 인식 종료 감지');
+        // 녹음 중이고 타이머가 남아있으면 자동으로 재시작
+        if (isRecording && timeLeft > 0) {
+          console.log('음성 인식 자동 재시작...');
+          try {
+            recognitionRef.current?.start();
+          } catch (error) {
+            console.error('음성 인식 재시작 실패:', error);
+          }
         }
       };
 
@@ -191,17 +239,35 @@ export default function InterviewUI({ questions, onComplete }) {
   };
 
   const handleStopRecording = async () => {
+    console.log('=== 녹음 중지 ===');
+    
     // 1. SpeechRecognition 중지
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
 
-    // 2. MediaRecorder 중지 (onstop 이벤트에서 오디오 전송됨)
+    // 2. 현재 answer state의 값을 최종 답변으로 저장
+    // (finalTranscriptRef + 마지막 interim 결과 포함)
+    setAnswer(prevAnswer => {
+      console.log('현재 화면 텍스트:', prevAnswer);
+      console.log('현재 화면 텍스트 길이:', prevAnswer.length, '자');
+      
+      const finalAnswer = prevAnswer.trim() || '답변 없음';
+      // finalTranscriptRef에도 저장하여 sendAudioForAnalysis에서 사용
+      finalTranscriptRef.current = finalAnswer;
+      
+      console.log('최종 저장 텍스트:', finalAnswer);
+      console.log('최종 저장 텍스트 길이:', finalAnswer.length, '자');
+      
+      return finalAnswer;
+    });
+
+    // 3. MediaRecorder 중지 (onstop 이벤트에서 오디오 전송됨)
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
 
-    // 3. 오디오 스트림 정리
+    // 4. 오디오 스트림 정리
     if (audioStreamRef.current) {
       audioStreamRef.current.getTracks().forEach(track => track.stop());
       audioStreamRef.current = null;
@@ -221,10 +287,18 @@ export default function InterviewUI({ questions, onComplete }) {
   // 오디오 파일을 서버로 전송하여 전달력 분석
   const sendAudioForAnalysis = async (audioBlob) => {
     try {
+      // 최종 누적된 텍스트 사용
+      const finalAnswer = finalTranscriptRef.current.trim() || '답변 없음';
+      
+      console.log('=== 평가 전송 ===');
+      console.log('질문:', questions[currentQuestionIndex].question);
+      console.log('답변 텍스트:', finalAnswer);
+      console.log('답변 길이:', finalAnswer.length, '자');
+      
       const formData = new FormData();
       formData.append('audio', audioBlob, 'interview_answer.webm');
       formData.append('question', questions[currentQuestionIndex].question);
-      formData.append('transcript', answer || '답변 없음'); // 실시간 텍스트도 함께 전송
+      formData.append('transcript', finalAnswer); // 최종 누적된 텍스트 전송
 
       const response = await fetch('/api/interview/evaluate-delivery', {
         method: 'POST',
@@ -240,7 +314,7 @@ export default function InterviewUI({ questions, onComplete }) {
       // 결과 저장
       const newResult = {
         question: questions[currentQuestionIndex].question,
-        userAnswer: answer || '답변 없음',
+        userAnswer: finalAnswer,
         contentScore: analysisResult.contentFeedback?.score || 0,
         contentAdvice: analysisResult.contentFeedback?.advice || '',
         deliveryMetrics: analysisResult.deliveryFeedback || {},
@@ -274,6 +348,14 @@ export default function InterviewUI({ questions, onComplete }) {
     setIsProcessing(true);
 
     try {
+      // 최종 누적된 텍스트 사용
+      const finalAnswer = finalTranscriptRef.current.trim() || '답변 없음';
+      
+      console.log('=== 폴백 평가 전송 ===');
+      console.log('질문:', questions[currentQuestionIndex].question);
+      console.log('답변 텍스트:', finalAnswer);
+      console.log('답변 길이:', finalAnswer.length, '자');
+      
       const response = await fetch('/api/interview/evaluate', {
         method: 'POST',
         headers: {
@@ -281,7 +363,7 @@ export default function InterviewUI({ questions, onComplete }) {
         },
         body: JSON.stringify({
           question: questions[currentQuestionIndex].question,
-          userAnswer: answer || '답변 없음'
+          userAnswer: finalAnswer
         }),
       });
 
@@ -293,7 +375,7 @@ export default function InterviewUI({ questions, onComplete }) {
       
       const newResult = {
         question: questions[currentQuestionIndex].question,
-        userAnswer: answer || '답변 없음',
+        userAnswer: finalAnswer,
         contentScore: evaluation.score,
         contentAdvice: evaluation.feedback,
         deliveryMetrics: null, // 오디오 분석 없음
@@ -337,6 +419,9 @@ export default function InterviewUI({ questions, onComplete }) {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+
+    // 누적 텍스트 초기화
+    finalTranscriptRef.current = '';
     
     const newResult = {
       question: questions[currentQuestionIndex].question,
@@ -495,29 +580,64 @@ export default function InterviewUI({ questions, onComplete }) {
           <div className="space-y-4">
             {results.map((result, index) => (
               <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-3">
                   <span className="text-sm font-medium text-gray-700">질문 {index + 1}</span>
                   <span className="text-xl font-bold text-primary-600">{result.contentScore}/10</span>
                 </div>
                 
+                {/* 질문 표시 */}
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">질문</p>
+                  <p className="text-sm text-gray-700 bg-white p-2 rounded">{result.question}</p>
+                </div>
+
+                {/* 답변 표시 */}
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">내 답변</p>
+                  <p className="text-sm text-gray-800 bg-white p-2 rounded max-h-24 overflow-y-auto">
+                    {result.userAnswer}
+                  </p>
+                </div>
+
+                {/* 내용 피드백 */}
+                {result.contentAdvice && (
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">💡 내용 피드백</p>
+                    <p className="text-sm text-gray-700 bg-blue-50 p-2 rounded border border-blue-200">
+                      {result.contentAdvice}
+                    </p>
+                  </div>
+                )}
+                
                 {/* 전달력 메트릭 표시 */}
                 {result.deliveryMetrics && (
-                  <div className="mt-2 pt-2 border-t border-gray-300">
-                    <p className="text-xs font-semibold text-gray-600 mb-1">🎙️ 전달력 분석</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs font-semibold text-gray-600 mb-2">🎙️ 전달력 분석</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                       {result.deliveryMetrics.wpm && (
-                        <div className="bg-white p-2 rounded">
+                        <div className="bg-white p-2 rounded border border-gray-200">
                           <span className="text-gray-600">말 속도:</span>
                           <span className="ml-1 font-medium">{result.deliveryMetrics.wpm} WPM</span>
                         </div>
                       )}
                       {result.deliveryMetrics.fillerCount !== undefined && (
-                        <div className="bg-white p-2 rounded">
+                        <div className="bg-white p-2 rounded border border-gray-200">
                           <span className="text-gray-600">필러 단어:</span>
                           <span className="ml-1 font-medium">{result.deliveryMetrics.fillerCount}회</span>
                         </div>
                       )}
                     </div>
+                    {/* 전달력 조언 */}
+                    {result.deliveryMetrics.wpmAdvice && (
+                      <p className="text-xs text-gray-600 bg-white p-2 rounded mb-1">
+                        📊 {result.deliveryMetrics.wpmAdvice}
+                      </p>
+                    )}
+                    {result.deliveryMetrics.fillerAdvice && (
+                      <p className="text-xs text-gray-600 bg-white p-2 rounded">
+                        🗣️ {result.deliveryMetrics.fillerAdvice}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
