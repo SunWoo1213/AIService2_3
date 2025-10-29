@@ -707,10 +707,10 @@ export default function InterviewUI({ questions, onComplete }) {
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs font-semibold text-gray-600 mb-2">🎙️ 전달력 분석</p>
                     <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                      {result.deliveryMetrics.wpm && (
+                      {result.deliveryMetrics.spm && (
                         <div className="bg-white p-2 rounded border border-gray-200">
                           <span className="text-gray-600">말 속도:</span>
-                          <span className="ml-1 font-medium">{result.deliveryMetrics.wpm} WPM</span>
+                          <span className="ml-1 font-medium">{result.deliveryMetrics.spm} SPM</span>
                         </div>
                       )}
                       {result.deliveryMetrics.fillerCount !== undefined && (
@@ -721,9 +721,9 @@ export default function InterviewUI({ questions, onComplete }) {
                       )}
                     </div>
                     {/* 전달력 조언 */}
-                    {result.deliveryMetrics.wpmAdvice && (
+                    {result.deliveryMetrics.speedAdvice && (
                       <p className="text-xs text-gray-600 bg-white p-2 rounded mb-1">
-                        📊 {result.deliveryMetrics.wpmAdvice}
+                        📊 {result.deliveryMetrics.speedAdvice}
                       </p>
                     )}
                     {result.deliveryMetrics.fillerAdvice && (

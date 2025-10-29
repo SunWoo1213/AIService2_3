@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 
+// 한국어 음절 수 계산 함수 (한글 글자 수 기준)
+function countKoreanSyllables(text) {
+  if (!text) return 0;
+  // 한글 음절 범위: [가-힣], 한글 자모: [ㄱ-ㅎㅏ-ㅣ]
+  // 공백, 숫자, 영문, 특수문자 제외하고 한글만 카운트
+  const koreanOnly = text.replace(/[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/g, '');
+  return koreanOnly.length;
+}
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -26,22 +35,24 @@ export async function POST(request) {
       // LLM API가 설정되지 않은 경우 샘플 응답
       console.warn('LLM_API_KEY not set. Returning sample delivery analysis.');
       
-      // WPM 계산 (실제 녹음 시간 사용)
-      const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
-      let wpm = null;
+      // SPM 계산 (한국어 음절 기준, 실제 녹음 시간 사용)
+      const syllableCount = countKoreanSyllables(transcript);
+      let spm = null;
+      
+      console.log(`한국어 음절 수: ${syllableCount}개`);
       
       // 실제 녹음 시간이 있으면 사용, 없으면 추정 (최소 5초)
       if (actualDuration && parseInt(actualDuration) >= 5) {
         const durationInSeconds = parseInt(actualDuration);
-        wpm = Math.round((wordCount / durationInSeconds) * 60);
-        console.log(`WPM 계산: ${wordCount}단어 / ${durationInSeconds}초 = ${wpm} WPM`);
-      } else if (wordCount >= 10) {
-        // 답변이 충분히 길면 평균 속도로 추정 (단, 최소 답변 시간 10초 가정)
-        const estimatedDuration = Math.max(10, Math.round(wordCount / 2.5));
-        wpm = Math.round((wordCount / estimatedDuration) * 60);
-        console.log(`WPM 추정 (짧은 답변): ${wordCount}단어, 추정 ${estimatedDuration}초 = ${wpm} WPM`);
+        spm = Math.round((syllableCount / durationInSeconds) * 60);
+        console.log(`SPM 계산: ${syllableCount}음절 / ${durationInSeconds}초 = ${spm} SPM (음절/분)`);
+      } else if (syllableCount >= 20) {
+        // 답변이 충분히 길면 평균 속도로 추정 (한국어 평균: 350 SPM)
+        const estimatedDuration = Math.max(10, Math.round(syllableCount / 5.8));
+        spm = Math.round((syllableCount / estimatedDuration) * 60);
+        console.log(`SPM 추정 (짧은 답변): ${syllableCount}음절, 추정 ${estimatedDuration}초 = ${spm} SPM`);
       } else {
-        console.log('답변이 너무 짧아 WPM을 계산하지 않음');
+        console.log('답변이 너무 짧아 말 속도를 계산하지 않음');
       }
 
       // 필러 단어 카운트 (한국어 최적화)
@@ -67,13 +78,17 @@ export async function POST(request) {
           advice: '전반적으로 좋은 답변입니다. 구체적인 예시를 더 추가하면 더욱 설득력있는 답변이 될 것입니다.'
         },
         deliveryFeedback: {
-          wpm: wpm,
-          wpmAdvice: wpm 
-            ? (wpm >= 130 && wpm <= 160 
+          spm: spm,
+          speedAdvice: spm 
+            ? (spm >= 300 && spm <= 400 
               ? '말의 속도가 적절합니다. 듣기 편안한 속도로 답변하셨습니다.'
-              : wpm < 130
-              ? '말의 속도가 다소 느립니다. 조금 더 자신감 있게 말씀하시면 좋겠습니다.'
-              : '말의 속도가 다소 빠릅니다. 조금 더 천천히 말하면 면접관이 이해하기 쉬울 것입니다.')
+              : spm < 300
+              ? spm < 250
+                ? '말의 속도가 상당히 느립니다. 좀 더 자신감 있고 활기차게 말씀해보세요.'
+                : '말의 속도가 다소 느립니다. 조금 더 자신감 있게 말씀하시면 좋겠습니다.'
+              : spm > 450
+                ? '말의 속도가 상당히 빠릅니다. 면접관이 내용을 따라가기 어려울 수 있으니 천천히 말해보세요.'
+                : '말의 속도가 다소 빠릅니다. 조금 더 천천히 말하면 면접관이 이해하기 쉬울 것입니다.')
             : '답변이 너무 짧아 말 속도를 정확히 측정할 수 없습니다. 좀 더 길게 답변해보세요.',
           fillerCount: fillerCount,
           fillerAdvice: fillerCount <= 2
@@ -118,10 +133,11 @@ export async function POST(request) {
           console.log('Whisper duration 사용:', durationInSeconds, '초');
         }
 
-        // Step 2: 전달력 메트릭 계산
-        const wordCount = whisperTranscript.split(/\s+/).filter(Boolean).length;
-        const wpm = Math.round((wordCount / durationInSeconds) * 60);
-        console.log(`WPM 계산: ${wordCount}단어 / ${durationInSeconds}초 = ${wpm} WPM`);
+        // Step 2: 전달력 메트릭 계산 (한국어 음절 기준)
+        const syllableCount = countKoreanSyllables(whisperTranscript);
+        const spm = Math.round((syllableCount / durationInSeconds) * 60);
+        console.log(`한국어 음절 수: ${syllableCount}개`);
+        console.log(`SPM 계산: ${syllableCount}음절 / ${durationInSeconds}초 = ${spm} SPM (음절/분)`);
 
         // 필러 단어 분석 (한국어 최적화)
         const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
@@ -150,12 +166,14 @@ export async function POST(request) {
 
 **답변 전사본**: "${whisperTranscript}"
 
-**측정된 전달력 지표**:
-- 말 속도: ${wpm} WPM
-  * 이상적 범위: 130-160 WPM
-  * 너무 빠름(>180): 조급해 보이거나 긴장한 인상
-  * 적정(130-160): 자신감 있고 명확한 전달
-  * 너무 느림(<110): 준비 부족이나 자신감 결여로 보일 수 있음
+**측정된 전달력 지표** (한국어 기준):
+- 말 속도: ${spm} SPM (음절/분)
+  * 이상적 범위: 300-400 SPM
+  * 너무 빠름(>450): 조급해 보이거나 긴장한 인상, 내용 이해 어려움
+  * 적정(300-400): 자신감 있고 명확한 전달, 편안한 청취
+  * 다소 빠름(400-450): 약간 빠르지만 수용 가능
+  * 다소 느림(250-300): 약간 느리지만 수용 가능
+  * 너무 느림(<250): 준비 부족이나 자신감 결여로 보일 수 있음
   
 - 필러 단어 사용: ${fillerCount}회
   * 우수(0-2회): 매우 준비된 답변, 전문적 인상
@@ -176,7 +194,7 @@ export async function POST(request) {
 
 ### 2. 전달력 분석 (Delivery Analysis)
 다음 관점에서 평가하세요:
-- **말 속도**: 측정된 ${wpm} WPM의 적절성
+- **말 속도**: 측정된 ${spm} SPM (음절/분)의 적절성
 - **명료성**: 핵심 메시지의 전달력
 - **자신감**: 언어 선택과 표현의 확신성
 - **필러 단어**: ${fillerCount}회 사용의 영향도
@@ -202,11 +220,11 @@ export async function POST(request) {
 **4단락**: 실전 적용 팁
 - 면접 현장에서 바로 활용 가능한 조언
 
-### wpmAdvice (말 속도 피드백)
+### speedAdvice (말 속도 피드백)
 **2-3문장으로 구성** (최소 80자):
-- 현재 ${wpm} WPM에 대한 구체적 평가
-- 이상적 범위(130-160)와의 비교
-- 구체적 개선 방법 (예: 문장 사이 짧은 호흡, 핵심 단어 강조 등)
+- 현재 ${spm} SPM (음절/분)에 대한 구체적 평가
+- 이상적 범위(300-400 SPM)와의 비교
+- 구체적 개선 방법 (예: 문장 사이 짧은 호흡, 핵심 단어 강조, 의식적으로 속도 조절 등)
 
 ### fillerAdvice (필러 단어 피드백)
 **2-3문장으로 구성** (최소 80자):
@@ -240,8 +258,8 @@ export async function POST(request) {
     "advice": "3-4문단으로 구성된 상세한 내용 피드백 (250자 이상)"
   },
   "deliveryFeedback": {
-    "wpm": ${wpm},
-    "wpmAdvice": "말 속도에 대한 구체적이고 실행 가능한 조언 (80자 이상)",
+    "spm": ${spm},
+    "speedAdvice": "말 속도에 대한 구체적이고 실행 가능한 조언 (80자 이상)",
     "fillerCount": ${fillerCount},
     "fillerAdvice": "필러 단어 개선을 위한 구체적인 실전 팁 (80자 이상)"
   }
@@ -287,10 +305,11 @@ export async function POST(request) {
 
       } catch (error) {
         console.error('Whisper/LLM API 오류:', error);
-        // 폴백: 기본 메트릭만 계산
-        const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
-        const estimatedDuration = Math.max(10, wordCount / 2.5);
-        const wpm = Math.round((wordCount / estimatedDuration) * 60);
+        // 폴백: 기본 메트릭만 계산 (한국어 음절 기준)
+        const syllableCount = countKoreanSyllables(transcript);
+        const estimatedDuration = Math.max(10, syllableCount / 5.8);
+        const spm = Math.round((syllableCount / estimatedDuration) * 60);
+        console.log(`폴백 SPM 계산: ${syllableCount}음절 / ${estimatedDuration}초 = ${spm} SPM`);
 
         // 필러 단어 카운트 (한국어 최적화)
         const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
@@ -311,8 +330,8 @@ export async function POST(request) {
             advice: '답변 내용이 질문과 관련이 있습니다. 더 구체적인 예시를 추가하면 좋겠습니다.'
           },
           deliveryFeedback: {
-            wpm: wpm,
-            wpmAdvice: '말하기 속도를 분석했습니다.',
+            spm: spm,
+            speedAdvice: '말하기 속도를 분석했습니다. 한국어 평균 속도(300-400 SPM)를 참고하여 조절해보세요.',
             fillerCount: fillerCount,
             fillerAdvice: '필러 단어 사용을 줄이도록 노력해보세요.'
           }

@@ -118,16 +118,16 @@ export default function FeedbackDetailPage({ params }) {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                       {/* 말 속도 */}
-                      {result.deliveryMetrics.wpm && (
+                      {result.deliveryMetrics.spm && (
                         <div className="bg-white p-3 rounded-lg">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-medium text-gray-600">말 속도</span>
                             <span className="text-lg font-bold text-primary-600">
-                              {result.deliveryMetrics.wpm} WPM
+                              {result.deliveryMetrics.spm} SPM
                             </span>
                           </div>
                           <p className="text-xs text-gray-600">
-                            {result.deliveryMetrics.wpmAdvice || '이상적 범위: 130-160 WPM'}
+                            {result.deliveryMetrics.speedAdvice || '이상적 범위: 300-400 SPM (음절/분)'}
                           </p>
                         </div>
                       )}
