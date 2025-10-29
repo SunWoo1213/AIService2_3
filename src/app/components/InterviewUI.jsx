@@ -24,6 +24,8 @@ export default function InterviewUI({ questions, onComplete }) {
   const finalTranscriptRef = useRef('');
   // 현재 녹음 상태를 추적 (클로저 문제 방지)
   const isRecordingRef = useRef(false);
+  // 실제 녹음 시작 시간 추적 (정확한 WPM 계산을 위해)
+  const recordingStartTimeRef = useRef(null);
 
   // TTS 기능: 질문을 음성으로 읽어주는 함수 (면접관 발성 최적화)
   const speakQuestion = (text, autoStartTimer = false) => {
@@ -191,6 +193,10 @@ export default function InterviewUI({ questions, onComplete }) {
       // 누적 텍스트 초기화 (새로운 녹음 시작)
       finalTranscriptRef.current = '';
       setAnswer('');
+      
+      // 녹음 시작 시간 기록 (정확한 WPM 계산을 위해)
+      recordingStartTimeRef.current = Date.now();
+      console.log('녹음 시작 시간 기록:', new Date(recordingStartTimeRef.current).toLocaleTimeString());
 
       // 1. 오디오 스트림 가져오기 (MediaRecorder용)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -363,15 +369,27 @@ export default function InterviewUI({ questions, onComplete }) {
       // 최종 누적된 텍스트 사용
       const finalAnswer = finalTranscriptRef.current.trim() || '답변 없음';
       
+      // 실제 녹음 시간 계산 (정확한 WPM을 위해)
+      const recordingEndTime = Date.now();
+      const actualDurationInSeconds = recordingStartTimeRef.current 
+        ? Math.round((recordingEndTime - recordingStartTimeRef.current) / 1000)
+        : null;
+      
       console.log('=== 평가 전송 ===');
       console.log('질문:', questions[currentQuestionIndex].question);
       console.log('답변 텍스트:', finalAnswer);
       console.log('답변 길이:', finalAnswer.length, '자');
+      console.log('실제 녹음 시간:', actualDurationInSeconds, '초');
       
       const formData = new FormData();
       formData.append('audio', audioBlob, 'interview_answer.webm');
       formData.append('question', questions[currentQuestionIndex].question);
       formData.append('transcript', finalAnswer); // 최종 누적된 텍스트 전송
+      
+      // 실제 녹음 시간 전송 (WPM 계산에 사용)
+      if (actualDurationInSeconds) {
+        formData.append('actualDuration', actualDurationInSeconds.toString());
+      }
 
       const response = await fetch('/api/interview/evaluate-delivery', {
         method: 'POST',

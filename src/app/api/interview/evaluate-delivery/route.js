@@ -6,6 +6,7 @@ export async function POST(request) {
     const audioFile = formData.get('audio');
     const question = formData.get('question');
     const transcript = formData.get('transcript'); // SpeechRecognition으로 얻은 텍스트
+    const actualDuration = formData.get('actualDuration'); // 실제 녹음 시간 (초)
 
     if (!audioFile || !question) {
       return NextResponse.json(
@@ -13,6 +14,8 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+    
+    console.log('받은 실제 녹음 시간:', actualDuration, '초');
 
     const llmApiKey = process.env.LLM_API_KEY;
     const llmApiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1';
@@ -23,10 +26,23 @@ export async function POST(request) {
       // LLM API가 설정되지 않은 경우 샘플 응답
       console.warn('LLM_API_KEY not set. Returning sample delivery analysis.');
       
-      // 간단한 WPM 계산 (transcript 기반)
+      // WPM 계산 (실제 녹음 시간 사용)
       const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
-      const estimatedDuration = Math.max(10, wordCount / 2.5); // 대략 150 WPM 가정
-      const wpm = Math.round((wordCount / estimatedDuration) * 60);
+      let wpm = null;
+      
+      // 실제 녹음 시간이 있으면 사용, 없으면 추정 (최소 5초)
+      if (actualDuration && parseInt(actualDuration) >= 5) {
+        const durationInSeconds = parseInt(actualDuration);
+        wpm = Math.round((wordCount / durationInSeconds) * 60);
+        console.log(`WPM 계산: ${wordCount}단어 / ${durationInSeconds}초 = ${wpm} WPM`);
+      } else if (wordCount >= 10) {
+        // 답변이 충분히 길면 평균 속도로 추정 (단, 최소 답변 시간 10초 가정)
+        const estimatedDuration = Math.max(10, Math.round(wordCount / 2.5));
+        wpm = Math.round((wordCount / estimatedDuration) * 60);
+        console.log(`WPM 추정 (짧은 답변): ${wordCount}단어, 추정 ${estimatedDuration}초 = ${wpm} WPM`);
+      } else {
+        console.log('답변이 너무 짧아 WPM을 계산하지 않음');
+      }
 
       // 필러 단어 카운트 (한국어 최적화)
       const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
@@ -52,11 +68,13 @@ export async function POST(request) {
         },
         deliveryFeedback: {
           wpm: wpm,
-          wpmAdvice: wpm >= 130 && wpm <= 160 
-            ? '말의 속도가 적절합니다. 듣기 편안한 속도로 답변하셨습니다.'
-            : wpm < 130
-            ? '말의 속도가 다소 느립니다. 조금 더 자신감 있게 말씀하시면 좋겠습니다.'
-            : '말의 속도가 다소 빠릅니다. 조금 더 천천히 말하면 면접관이 이해하기 쉬울 것입니다.',
+          wpmAdvice: wpm 
+            ? (wpm >= 130 && wpm <= 160 
+              ? '말의 속도가 적절합니다. 듣기 편안한 속도로 답변하셨습니다.'
+              : wpm < 130
+              ? '말의 속도가 다소 느립니다. 조금 더 자신감 있게 말씀하시면 좋겠습니다.'
+              : '말의 속도가 다소 빠릅니다. 조금 더 천천히 말하면 면접관이 이해하기 쉬울 것입니다.')
+            : '답변이 너무 짧아 말 속도를 정확히 측정할 수 없습니다. 좀 더 길게 답변해보세요.',
           fillerCount: fillerCount,
           fillerAdvice: fillerCount <= 2
             ? '불필요한 필러 단어 사용이 적어 매우 좋습니다.'
@@ -89,11 +107,21 @@ export async function POST(request) {
 
         const transcriptionData = await transcriptionResponse.json();
         const whisperTranscript = transcriptionData.text || transcript;
-        const durationInSeconds = transcriptionData.duration || 30; // 폴백 값
+        
+        // 실제 녹음 시간을 우선 사용, 없으면 Whisper의 duration 사용
+        let durationInSeconds;
+        if (actualDuration && parseInt(actualDuration) >= 5) {
+          durationInSeconds = parseInt(actualDuration);
+          console.log('실제 녹음 시간 사용:', durationInSeconds, '초');
+        } else {
+          durationInSeconds = transcriptionData.duration || 30; // 폴백 값
+          console.log('Whisper duration 사용:', durationInSeconds, '초');
+        }
 
         // Step 2: 전달력 메트릭 계산
         const wordCount = whisperTranscript.split(/\s+/).filter(Boolean).length;
         const wpm = Math.round((wordCount / durationInSeconds) * 60);
+        console.log(`WPM 계산: ${wordCount}단어 / ${durationInSeconds}초 = ${wpm} WPM`);
 
         // 필러 단어 분석 (한국어 최적화)
         const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
