@@ -25,24 +25,57 @@ export default function InterviewUI({ questions, onComplete }) {
   // 현재 녹음 상태를 추적 (클로저 문제 방지)
   const isRecordingRef = useRef(false);
 
-  // TTS 기능: 질문을 음성으로 읽어주는 함수
+  // TTS 기능: 질문을 음성으로 읽어주는 함수 (면접관 발성 최적화)
   const speakQuestion = (text, autoStartTimer = false) => {
     // 기존 음성 재생이 있다면 중지
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
 
-    // 새로운 음성 합성 생성
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ko-KR';
-    utterance.rate = 0.9; // 약간 느리게 (선택 사항)
-    utterance.pitch = 1.0;
+    // 텍스트 전처리: 문장 사이에 자연스러운 쉼 추가
+    const processedText = text
+      .replace(/\./g, '. ')   // 마침표 뒤 쉼
+      .replace(/,/g, ', ')    // 쉼표 뒤 쉼
+      .replace(/\?/g, '? ')   // 물음표 뒤 쉼
+      .replace(/\s+/g, ' ')   // 중복 공백 제거
+      .trim();
 
-    // 사용 가능한 한국어 음성이 있다면 선택
+    // 새로운 음성 합성 생성
+    const utterance = new SpeechSynthesisUtterance(processedText);
+    utterance.lang = 'ko-KR';
+    
+    // 면접관 발성 최적화 설정
+    utterance.rate = 0.85;    // 천천히, 명확하게 (기본 1.0)
+    utterance.pitch = 0.95;   // 약간 낮게, 안정적이고 권위있게 (기본 1.0)
+    utterance.volume = 1.0;   // 명확한 볼륨
+
+    // 사용 가능한 한국어 음성 선택 (면접관 느낌의 음성 우선)
     const voices = window.speechSynthesis.getVoices();
-    const koreanVoice = voices.find(voice => voice.lang.includes('ko'));
-    if (koreanVoice) {
-      utterance.voice = koreanVoice;
+    
+    // 1순위: 한국어 남성 음성 (더 권위있는 느낌)
+    let selectedVoice = voices.find(voice => 
+      voice.lang.includes('ko') && 
+      (voice.name.includes('Male') || voice.name.includes('남성'))
+    );
+    
+    // 2순위: 한국어 여성 음성
+    if (!selectedVoice) {
+      selectedVoice = voices.find(voice => 
+        voice.lang.includes('ko') && 
+        (voice.name.includes('Female') || voice.name.includes('여성'))
+      );
+    }
+    
+    // 3순위: 아무 한국어 음성
+    if (!selectedVoice) {
+      selectedVoice = voices.find(voice => voice.lang.includes('ko'));
+    }
+    
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      console.log('선택된 TTS 음성:', selectedVoice.name);
+    } else {
+      console.warn('한국어 음성을 찾을 수 없습니다. 기본 음성을 사용합니다.');
     }
 
     // TTS가 끝나면 자동으로 타이머 시작 (핸즈프리 모드)
@@ -52,6 +85,11 @@ export default function InterviewUI({ questions, onComplete }) {
         setIsTimerRunning(true);
       };
     }
+
+    // 에러 처리
+    utterance.onerror = (event) => {
+      console.error('TTS 오류:', event.error);
+    };
 
     window.speechSynthesis.speak(utterance);
   };
@@ -64,9 +102,27 @@ export default function InterviewUI({ questions, onComplete }) {
         setBrowserSupported(false);
       }
 
-      // TTS를 위해 음성 목록 로드
+      // TTS를 위해 음성 목록 로드 (면접관 음성 선택을 위해)
       if (window.speechSynthesis) {
-        window.speechSynthesis.getVoices();
+        // 음성 목록이 비동기로 로드되므로 이벤트 리스너 등록
+        const loadVoices = () => {
+          const voices = window.speechSynthesis.getVoices();
+          console.log('사용 가능한 TTS 음성 목록:', voices.length, '개');
+          
+          // 한국어 음성 목록 출력
+          const koreanVoices = voices.filter(v => v.lang.includes('ko'));
+          if (koreanVoices.length > 0) {
+            console.log('한국어 음성:', koreanVoices.map(v => `${v.name} (${v.lang})`));
+          }
+        };
+
+        // 음성 목록 즉시 로드 시도
+        loadVoices();
+
+        // 음성 목록이 나중에 로드될 경우를 대비한 이벤트 리스너
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
       }
     }
   }, []);
