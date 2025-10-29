@@ -170,23 +170,20 @@ export default function InterviewUI({ questions, onComplete }) {
 
       recognitionRef.current.onresult = (event) => {
         let interimTranscript = ''; // 임시 중간 결과
-        let finalTranscript = ''; // 확정된 결과
-
-        // 모든 결과를 순회하며 final과 interim 구분
-        for (let i = 0; i < event.results.length; i++) {
+        
+        // resultIndex부터 시작하여 새로운 결과만 처리 (중복 방지)
+        for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
+          
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
+            // 최종 확정된 텍스트는 누적 저장
+            finalTranscriptRef.current += transcript + ' ';
+            console.log('음성 인식 (최종):', transcript);
+            console.log('누적 텍스트:', finalTranscriptRef.current);
           } else {
+            // 중간 결과는 누적하지 않고 현재 결과만 표시
             interimTranscript += transcript;
           }
-        }
-
-        // 최종 확정된 텍스트가 있으면 누적
-        if (finalTranscript) {
-          finalTranscriptRef.current += finalTranscript;
-          console.log('음성 인식 (최종):', finalTranscript);
-          console.log('누적 텍스트:', finalTranscriptRef.current);
         }
 
         // 화면에 표시: 누적된 최종 텍스트 + 현재 중간 결과
@@ -315,7 +312,6 @@ export default function InterviewUI({ questions, onComplete }) {
       const newResult = {
         question: questions[currentQuestionIndex].question,
         userAnswer: finalAnswer,
-        contentScore: analysisResult.contentFeedback?.score || 0,
         contentAdvice: analysisResult.contentFeedback?.advice || '',
         deliveryMetrics: analysisResult.deliveryFeedback || {},
       };
@@ -376,7 +372,6 @@ export default function InterviewUI({ questions, onComplete }) {
       const newResult = {
         question: questions[currentQuestionIndex].question,
         userAnswer: finalAnswer,
-        contentScore: evaluation.score,
         contentAdvice: evaluation.feedback,
         deliveryMetrics: null, // 오디오 분석 없음
       };
@@ -426,7 +421,6 @@ export default function InterviewUI({ questions, onComplete }) {
     const newResult = {
       question: questions[currentQuestionIndex].question,
       userAnswer: '건너뜀',
-      contentScore: 0,
       contentAdvice: '답변을 건너뛰었습니다.',
       deliveryMetrics: null,
     };
@@ -525,15 +519,28 @@ export default function InterviewUI({ questions, onComplete }) {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {isRecording ? '🎤 녹음 중...' : '답변 (음성 인식)'}
+            {isRecording ? '🎤 녹음 중... (직접 수정 가능)' : '답변 (음성 인식)'}
           </label>
           <textarea
             value={answer}
-            readOnly
-            className="input-field resize-none bg-gray-50 cursor-not-allowed"
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setAnswer(newValue);
+              // 사용자가 직접 수정한 내용도 finalTranscriptRef에 반영
+              if (isRecording) {
+                finalTranscriptRef.current = newValue;
+                console.log('사용자 직접 수정:', newValue);
+              }
+            }}
+            className="input-field resize-none"
             rows={6}
             placeholder="🎤 '답변 시작' 버튼을 눌러 음성으로 답변하세요..."
           />
+          {isRecording && (
+            <p className="text-xs text-gray-500 mt-1">
+              💡 음성 인식 중에도 텍스트를 직접 수정할 수 있습니다.
+            </p>
+          )}
         </div>
 
         {/* Controls */}
@@ -580,9 +587,8 @@ export default function InterviewUI({ questions, onComplete }) {
           <div className="space-y-4">
             {results.map((result, index) => (
               <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-start mb-3">
+                <div className="mb-3">
                   <span className="text-sm font-medium text-gray-700">질문 {index + 1}</span>
-                  <span className="text-xl font-bold text-primary-600">{result.contentScore}/10</span>
                 </div>
                 
                 {/* 질문 표시 */}
