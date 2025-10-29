@@ -100,11 +100,8 @@ export default function FeedbackDetailPage({ params }) {
 
                 {/* 내용 평가 */}
                 <div className="border-t pt-3 mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">📝 내용 점수:</span>
-                    <span className="text-xl font-bold text-primary-600">
-                      {result.contentScore || result.score || 0}/10
-                    </span>
+                  <div className="mb-2">
+                    <span className="text-sm font-medium text-gray-600">📝 내용 피드백:</span>
                   </div>
                   <p className="text-gray-700 text-sm">
                     {result.contentAdvice || result.feedback || '평가 없음'}

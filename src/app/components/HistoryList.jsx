@@ -74,24 +74,6 @@ export default function HistoryList({ feedbacks, type }) {
                       총 {feedback.interviewResults?.length || 0}개 질문
                     </span>
                   </div>
-                  {feedback.interviewResults && feedback.interviewResults.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-gray-600 text-sm font-medium mb-1">평균 점수:</p>
-                      <div className="flex items-center">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
-                          <div
-                            className="bg-green-600 h-2 rounded-full"
-                            style={{
-                              width: `${(feedback.interviewResults.reduce((acc, r) => acc + r.score, 0) / feedback.interviewResults.length / 10) * 100}%`
-                            }}
-                          ></div>
-                        </div>
-                        <span className="text-gray-700 font-semibold">
-                          {(feedback.interviewResults.reduce((acc, r) => acc + r.score, 0) / feedback.interviewResults.length).toFixed(1)}/10
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 

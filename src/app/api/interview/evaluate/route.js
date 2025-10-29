@@ -17,10 +17,10 @@ export async function POST(request) {
 
 **Candidate's Answer**: ${userAnswer}
 
-Provide feedback on clarity, technical accuracy, and relevance. Give a score from 1-10 and provide a concise feedback point in Korean.
+Provide feedback on clarity, technical accuracy, and relevance. Focus on constructive advice without scoring.
 
 Return a JSON object in this format:
-{"score": 8, "feedback": "피드백 내용 in Korean"}
+{"feedback": "피드백 내용 in Korean"}
 
 Provide ONLY the JSON object, no additional text.`;
 
@@ -33,15 +33,7 @@ Provide ONLY the JSON object, no additional text.`;
       // LLM API가 설정되지 않은 경우 샘플 응답
       console.warn('LLM_API_KEY not set. Returning sample evaluation.');
       
-      // 답변 길이에 따라 점수 조정
-      const answerLength = userAnswer.length;
-      let score = 5;
-      if (answerLength > 100) score = 7;
-      if (answerLength > 200) score = 8;
-      if (userAnswer === '답변 없음' || userAnswer === '건너뜀') score = 0;
-
       evaluation = {
-        score: score,
         feedback: userAnswer === '답변 없음' || userAnswer === '건너뜀' 
           ? '답변이 제공되지 않았습니다.' 
           : '전반적으로 좋은 답변입니다. 구체적인 사례를 더 추가하면 더욱 설득력있는 답변이 될 것 같습니다.'

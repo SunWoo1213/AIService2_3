@@ -28,18 +28,26 @@ export async function POST(request) {
       const estimatedDuration = Math.max(10, wordCount / 2.5); // 대략 150 WPM 가정
       const wpm = Math.round((wordCount / estimatedDuration) * 60);
 
-      // 필러 단어 카운트
-      const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까'];
+      // 필러 단어 카운트 (한국어 최적화)
+      const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
       let fillerCount = 0;
       if (transcript) {
-        const regex = new RegExp(`\\b(${fillerWords.join('|')})\\b`, 'gi');
-        const matches = transcript.match(regex);
-        fillerCount = matches ? matches.length : 0;
+        // 한국어는 단어 경계(\b)가 제대로 작동하지 않으므로 공백이나 문장 부호 기준으로 매칭
+        const textWithSpaces = ' ' + transcript + ' ';
+        fillerWords.forEach(word => {
+          // 각 필러 단어를 독립적으로 찾기 (공백, 문장부호, 시작/끝 기준)
+          const regex = new RegExp(`[\\s,\\.\\?!]${word}[\\s,\\.\\?!]`, 'gi');
+          const matches = textWithSpaces.match(regex);
+          if (matches) {
+            fillerCount += matches.length;
+            console.log(`필러 단어 "${word}" 발견: ${matches.length}회`);
+          }
+        });
+        console.log('총 필러 단어 수:', fillerCount);
       }
 
       analysisResult = {
         contentFeedback: {
-          score: 7,
           advice: '전반적으로 좋은 답변입니다. 구체적인 예시를 더 추가하면 더욱 설득력있는 답변이 될 것입니다.'
         },
         deliveryFeedback: {
@@ -87,13 +95,22 @@ export async function POST(request) {
         const wordCount = whisperTranscript.split(/\s+/).filter(Boolean).length;
         const wpm = Math.round((wordCount / durationInSeconds) * 60);
 
-        // 필러 단어 분석
-        const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아'];
+        // 필러 단어 분석 (한국어 최적화)
+        const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
         let fillerCount = 0;
-        const regex = new RegExp(`\\b(${fillerWords.join('|')})\\b`, 'gi');
         if (whisperTranscript) {
-          const matches = whisperTranscript.match(regex);
-          fillerCount = matches ? matches.length : 0;
+          // 한국어는 단어 경계(\b)가 제대로 작동하지 않으므로 공백이나 문장 부호 기준으로 매칭
+          const textWithSpaces = ' ' + whisperTranscript + ' ';
+          fillerWords.forEach(word => {
+            // 각 필러 단어를 독립적으로 찾기 (공백, 문장부호, 시작/끝 기준)
+            const regex = new RegExp(`[\\s,\\.\\?!]${word}[\\s,\\.\\?!]`, 'gi');
+            const matches = textWithSpaces.match(regex);
+            if (matches) {
+              fillerCount += matches.length;
+              console.log(`필러 단어 "${word}" 발견: ${matches.length}회`);
+            }
+          });
+          console.log('총 필러 단어 수:', fillerCount);
         }
 
         // Step 3: LLM을 사용한 종합 피드백
@@ -111,7 +128,6 @@ export async function POST(request) {
 
 {
   "contentFeedback": {
-    "score": 8,
     "advice": "답변 내용에 대한 구체적인 피드백 (STAR 기법 사용 여부, 관련성, 논리성 등)"
   },
   "deliveryFeedback": {
@@ -123,10 +139,10 @@ export async function POST(request) {
 }
 
 **중요:**
-1. contentFeedback.score는 1-10 사이의 정수
-2. 모든 조언은 구체적이고 실행 가능해야 함
-3. 긍정적인 부분과 개선할 부분을 모두 언급
-4. 전달력 피드백은 제공된 메트릭을 기반으로 작성`;
+1. 모든 조언은 구체적이고 실행 가능해야 함
+2. 긍정적인 부분과 개선할 부분을 모두 언급
+3. 전달력 피드백은 제공된 메트릭을 기반으로 작성
+4. 점수 없이 피드백만 제공`;
 
         const llmResponse = await fetch(`${llmApiUrl}/chat/completions`, {
           method: 'POST',
@@ -167,17 +183,22 @@ export async function POST(request) {
         const estimatedDuration = Math.max(10, wordCount / 2.5);
         const wpm = Math.round((wordCount / estimatedDuration) * 60);
 
-        const fillerWords = ['어', '음', '그', '저기', '이제', '뭐'];
+        // 필러 단어 카운트 (한국어 최적화)
+        const fillerWords = ['어', '음', '그', '저기', '이제', '뭐', '그러니까', '아', '네'];
         let fillerCount = 0;
         if (transcript) {
-          const regex = new RegExp(`\\b(${fillerWords.join('|')})\\b`, 'gi');
-          const matches = transcript.match(regex);
-          fillerCount = matches ? matches.length : 0;
+          const textWithSpaces = ' ' + transcript + ' ';
+          fillerWords.forEach(word => {
+            const regex = new RegExp(`[\\s,\\.\\?!]${word}[\\s,\\.\\?!]`, 'gi');
+            const matches = textWithSpaces.match(regex);
+            if (matches) {
+              fillerCount += matches.length;
+            }
+          });
         }
 
         analysisResult = {
           contentFeedback: {
-            score: 7,
             advice: '답변 내용이 질문과 관련이 있습니다. 더 구체적인 예시를 추가하면 좋겠습니다.'
           },
           deliveryFeedback: {
